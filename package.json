@@ -19,6 +19,7 @@
     "@dollarshaveclub/cloudworker": "^0.1.2",
     "big.js": "^6.1.1",
     "ethers": "^5.4.5",
+    "luxon": "^2.0.2",
     "web-streams-polyfill": "^3.1.0"
   },
   "devDependencies": {
@@ -26,6 +27,7 @@
     "@cloudflare/wrangler": "^1.19.0",
     "@typechain/ethers-v5": "^7.0.1",
     "@types/big.js": "^6.1.1",
+    "@types/luxon": "^2.0.1",
     "@types/node": "^16.7.2",
     "envsub": "^4.0.7",
     "mkdirp": "^1.0.4",
