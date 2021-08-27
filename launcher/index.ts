@@ -19,7 +19,7 @@ class MockKv {
 
 const bindings: any = {};
 
-const envVars: string[] = ["ADMIN_TOKEN"];
+const envVars: string[] = ["ADMIN_TOKEN", "ETH_RPC", "LINA_ADDRESS"];
 const kvNamespaces: string[] = ["STORAGE"];
 
 for (const envVar of envVars) {
