@@ -1,3 +1,4 @@
+import { utils } from "ethers";
 import { Router } from "./router";
 import {
   badRequest,
@@ -7,6 +8,8 @@ import {
   ok,
   unauthorized,
 } from "./utils";
+
+const { getAddress } = utils;
 
 const getWhitelistFromStorage = async (): Promise<string[]> => {
   const whitelist: string[] = JSON.parse(await STORAGE.get(getWhitelistKey()));
@@ -30,7 +33,12 @@ const handleSetWhitelist = async (
   const cleanList: string[] = [];
 
   for (const entry of bodyList) {
-    if (!entry) return badRequest();
+    try {
+      if (!entry || entry !== getAddress(entry))
+        throw new Error("Invalid address");
+    } catch {
+      return badRequest();
+    }
 
     cleanList.push(entry);
   }
