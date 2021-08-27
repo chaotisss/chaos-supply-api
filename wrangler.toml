@@ -5,3 +5,8 @@ workers_dev = true
 route = "${DOMAIN}/*"
 zone_id = "${CLOUDFLARE_ZONE_ID}"
 webpack_config = "webpack.config.js"
+
+kv_namespaces = [
+  { binding = "STORAGE", id = "${KV_STORAGE_ID}" }
+]
+vars = { ADMIN_TOKEN = "${ADMIN_TOKEN}" }
