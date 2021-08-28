@@ -1,7 +1,7 @@
 import Big from "big.js";
 import { BigNumber, providers, utils } from "ethers";
 import { DateTime, Duration } from "luxon";
-import { ERC20__factory } from "./contracts";
+import { ERC20__factory, Multicall__factory } from "./contracts";
 import { Router } from "./router";
 import {
   badRequest,
@@ -13,7 +13,7 @@ import {
   unauthorized,
 } from "./utils";
 
-const { getAddress } = utils;
+const { getAddress, defaultAbiCoder } = utils;
 
 const TOTAL_SUPPLY: BigNumber = BigNumber.from("10000000000" + "0".repeat(18));
 const FIXED_DIFFERENCE: BigNumber = BigNumber.from(
@@ -80,44 +80,63 @@ const handleGetCirculatingSupply = async (
 
   const rpcProvider = new providers.JsonRpcProvider();
   const lina = ERC20__factory.connect(LINA_ADDRESS, rpcProvider);
+  const multicall = Multicall__factory.connect(MULTICALL_ADDRESS, rpcProvider);
 
   let circulatingSupply = TOTAL_SUPPLY;
 
+  const callDatas: string[] = [];
   for (const entry of whitelist) {
-    const balanceOfData = (await lina.populateTransaction.balanceOf(entry))
-      .data;
+    callDatas.push((await lina.populateTransaction.balanceOf(entry)).data!);
+  }
 
-    try {
-      const response = await fetch(ETH_RPC, {
-        method: "POST",
-        body: JSON.stringify({
-          method: "eth_call",
-          params: [
-            {
-              from: entry,
-              to: LINA_ADDRESS,
-              value: "0x0",
-              data: balanceOfData,
-            },
-            "latest",
-          ],
-          id: 1,
-          jsonrpc: "2.0",
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const body = await response.json();
-      if (body.error) {
-        throw new Error("JSON RPC request error");
-      }
+  const multiCallData: string = (
+    await multicall.populateTransaction.aggregate(
+      callDatas.map((item) => {
+        return {
+          target: LINA_ADDRESS,
+          callData: item,
+        };
+      })
+    )
+  ).data!;
 
-      const currentAddressBalance = BigNumber.from(body.result);
-      circulatingSupply = circulatingSupply.sub(currentAddressBalance);
-    } catch (ex) {
-      return internalServerError();
+  try {
+    const response = await fetch(ETH_RPC, {
+      method: "POST",
+      body: JSON.stringify({
+        method: "eth_call",
+        params: [
+          {
+            from: MULTICALL_ADDRESS,
+            to: MULTICALL_ADDRESS,
+            value: "0x0",
+            data: multiCallData,
+          },
+          "latest",
+        ],
+        id: 1,
+        jsonrpc: "2.0",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const body = await response.json();
+    if (body.error) {
+      throw new Error("JSON RPC request error");
     }
+
+    let blockNumber: BigNumber, returnData: string[];
+    [blockNumber, returnData] = defaultAbiCoder.decode(
+      ["uint256", "bytes[]"],
+      body.result
+    );
+
+    returnData.forEach((item) => {
+      circulatingSupply = circulatingSupply.sub(BigNumber.from(item));
+    });
+  } catch (ex) {
+    return internalServerError();
   }
 
   circulatingSupply = circulatingSupply.sub(FIXED_DIFFERENCE);
