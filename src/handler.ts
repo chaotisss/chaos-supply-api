@@ -1,6 +1,5 @@
 import Big from "big.js";
 import { BigNumber, providers, utils } from "ethers";
-import { DateTime, Duration } from "luxon";
 import { ERC20__factory, Multicall__factory } from "./contracts";
 import { Router } from "./router";
 import {
@@ -14,17 +13,8 @@ import {
 } from "./utils";
 
 const { getAddress, defaultAbiCoder } = utils;
+const TOTAL_SUPPLY: BigNumber = BigNumber.from("10000000000" + "0".repeat(16));
 
-const TOTAL_SUPPLY: BigNumber = BigNumber.from("10000000000" + "0".repeat(18));
-const FIXED_DIFFERENCE: BigNumber = BigNumber.from(
-  "1000000000" + "0".repeat(18)
-);
-const SMOOTH_DIFFERENCE: BigNumber = BigNumber.from(
-  "223906668" + "0".repeat(18)
-);
-const SMOOTH_START: DateTime = DateTime.fromISO("2021-08-27T00:00:00Z");
-const SMOOTH_DURATION: Duration = Duration.fromObject({ years: 1 });
-const SMOOTH_INTERVAL: Duration = Duration.fromObject({ days: 1 });
 
 const getWhitelistFromStorage = async (): Promise<string[]> => {
   const whitelist: string[] = JSON.parse(await STORAGE.get(getWhitelistKey()));
@@ -139,27 +129,6 @@ const handleGetCirculatingSupply = async (
     return internalServerError();
   }
 
-  circulatingSupply = circulatingSupply.sub(FIXED_DIFFERENCE);
-
-  // Smooth out
-  {
-    const smoothIntervalCount = Math.floor(
-      SMOOTH_DURATION.as("seconds") / SMOOTH_INTERVAL.as("seconds")
-    );
-    const intervalsPassed = Math.min(
-      Math.floor(
-        DateTime.utc().diff(SMOOTH_START).as("seconds") /
-          SMOOTH_INTERVAL.as("seconds")
-      ),
-      smoothIntervalCount
-    );
-
-    circulatingSupply = circulatingSupply.sub(
-      SMOOTH_DIFFERENCE.mul(smoothIntervalCount - intervalsPassed).div(
-        smoothIntervalCount
-      )
-    );
-  }
 
   return new Response(
     new Big(circulatingSupply.toString())
